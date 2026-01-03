@@ -377,7 +377,7 @@ opMetrics?.let {
 
 ## 📺 Visualization (JVM Only)
 
-The optional `comet-visualizer` module provides visualization tools for debugging and development.
+The optional `comet-visualizer` module provides real-time visualization tools for debugging and development.
 
 ```kotlin
 // build.gradle.kts
@@ -387,30 +387,14 @@ dependencies {
 }
 ```
 
-### Static HTML Export
+### Quick Demo
 
-Generate a static HTML file with your trace visualization:
+Run the built-in demo to see the visualizer in action:
 
-```kotlin
-import io.pandu.Comet
-import io.pandu.comet.visualizer.HtmlExporter
-
-val htmlExporter = HtmlExporter()
-val comet = Comet.create {
-    exporters(htmlExporter)
-    trackSuspensions(true)
-}
-comet.start()
-
-// Run your coroutines...
-scope.launch(comet.traced("my-operation")) {
-    // ...
-}
-
-// Generate HTML
-comet.flush()
-htmlExporter.writeHtml("trace-visualization.html")
-comet.shutdown()
+```bash
+cd comet-visualizer
+./gradlew :demo:run
+# Open http://localhost:8080
 ```
 
 ### Real-time Web UI
@@ -419,18 +403,43 @@ Stream traces to a live web dashboard:
 
 ```kotlin
 import io.pandu.Comet
-import io.pandu.comet.visualizer.RealtimeExporter
 import io.pandu.comet.visualizer.TraceServer
+import io.pandu.comet.visualizer.TraceEvent
+import io.pandu.core.telemetry.exporters.CallbackCoroutineTelemetryExporter
+import kotlinx.serialization.json.Json
 
 val server = TraceServer(port = 8080)
 server.start()
 
-val exporters = RealtimeExporter { event ->
-    server.sendEvent(event)
+val exporter = CallbackCoroutineTelemetryExporter { event ->
+    val traceEvent = when (event) {
+        is CoroutineStarted -> TraceEvent(
+            type = "started",
+            id = event.coroutineTraceContext?.spanId ?: return@CallbackCoroutineTelemetryExporter,
+            parentId = event.coroutineTraceContext?.parentSpanId,
+            operation = event.coroutineTraceContext?.operationName ?: "coroutine",
+            status = "running",
+            dispatcher = event.dispatcher,
+            timestamp = event.timestamp
+        )
+        is CoroutineCompleted -> TraceEvent(
+            type = "completed",
+            id = event.coroutineTraceContext?.spanId ?: return@CallbackCoroutineTelemetryExporter,
+            parentId = event.coroutineTraceContext?.parentSpanId,
+            operation = event.coroutineTraceContext?.operationName ?: "coroutine",
+            status = "completed",
+            durationMs = event.totalDurationNanos / 1_000_000.0,
+            dispatcher = event.dispatcher,
+            timestamp = event.timestamp
+        )
+        // Handle other event types...
+        else -> return@CallbackCoroutineTelemetryExporter
+    }
+    server.sendEvent(Json.encodeToString(traceEvent))
 }
 
 val comet = Comet.create {
-    exporters(exporters)
+    exporter(exporter)
     trackSuspensions(true)
 }
 comet.start()
@@ -445,24 +454,22 @@ server.stop()
 
 **Features:**
 - Tree view with parent-child relationships
-- Gantt chart timeline visualization
+- Gantt chart timeline with zoom (Ctrl+Scroll)
 - Dark/Light theme toggle
 - Real-time event streaming via SSE
-- Zoom and pan controls
 
-### Running the Example
+### Development Mode (Hot Reload)
+
+For frontend development with live reload:
 
 ```bash
-# Clone and run
-git clone https://github.com/pandubaraja/comet-example.git
-cd comet-example
+# Terminal 1: Start SSE backend
+./gradlew :demo:runDev
 
-# Run real-time visualizer (opens http://localhost:8080)
-./gradlew realtime
+# Terminal 2: Start frontend dev server
+./gradlew :frontend:jsBrowserDevelopmentRun --continuous
 
-# Or generate static HTML
-./gradlew visualize
-open trace-visualization.html
+# Open http://localhost:3000 - changes auto-reload!
 ```
 
 ## 🏗️ Architecture
