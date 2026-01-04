@@ -1,44 +1,42 @@
-# ☄️ Comet
+# Comet
 
 **Coroutine Telemetry** - A lightweight, KMP-compatible observability library for Kotlin Coroutines.
-
-> *"We are the astronomers, observing the trails of coroutines as they streak across your application."*
 
 [![Kotlin](https://img.shields.io/badge/kotlin-2.0.21-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![KMP](https://img.shields.io/badge/KMP-Android%20%7C%20iOS%20%7C%20JVM-blueviolet)](https://kotlinlang.org/docs/multiplatform.html)
 
-## ✨ Features
+## Features
 
-- 🔍 **Coroutine Lifecycle Tracking** - Start, suspend, resume, complete, fail, cancel events
-- 📊 **Real-time Metrics** - P50/P90/P99 latencies, failure rates, active counts
-- 🔗 **Distributed Tracing** - W3C Trace Context compatible trace propagation
-- 🎯 **Flexible Sampling** - Probabilistic, rate-limited, and operation-based strategies
-- 📤 **Pluggable Exporters** - In-memory, callback, composite, custom exporters
-- 🍎 **KMP Support** - Android, iOS, JVM targets
-- ⚡ **Low Overhead** - Lock-free data structures, configurable overhead modes
+- **Coroutine Lifecycle Tracking** - Start, suspend, resume, complete, fail, cancel events
+- **Real-time Metrics** - P50/P90/P99 latencies, failure rates, active counts
+- **Distributed Tracing** - W3C Trace Context compatible trace propagation
+- **Flexible Sampling** - Probabilistic, rate-limited, and operation-based strategies
+- **Pluggable Exporters** - Callback-based and composite exporters
+- **KMP Support** - Android, iOS, JVM targets
+- **Low Overhead** - Lock-free data structures, configurable overhead modes
 
-## 📦 Installation
+## Installation
 
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.pandu.comet:comet-sampling:0.1.0")
+    implementation("io.pandu.comet:comet-core:0.1.0")
 }
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-### Just Add `.traced()` to Your Launches!
+### Just Add `.traced()` to Your Launches
 
 ```kotlin
 import io.pandu.Comet
-import io.pandu.exporters.CallbackExporter
+import io.pandu.core.telemetry.exporters.CallbackCoroutineTelemetryExporter
 import kotlinx.coroutines.*
 
 // 1. Create Comet instance (once, at app startup)
 val comet = Comet.create {
-    exporters(CallbackExporter(
+    exporter(CallbackCoroutineTelemetryExporter(
         onEvent = { event -> println("[Comet] $event") },
         onMetrics = { metrics -> println("[Metrics] Active: ${metrics.activeCoroutines}") }
     ))
@@ -72,10 +70,12 @@ viewModelScope.launch(comet.traced("load-user")) {
 ### With Baggage (Propagates to All Children)
 
 ```kotlin
-scope.launch(comet.traced("api-request", mapOf(
-    "user-id" to userId,
-    "tenant" to tenantId
-))) {
+import io.pandu.core.CoroutineTraceContext
+
+scope.launch(comet.traced("api-request") + CoroutineTraceContext.Key.create(
+    "api-request",
+    baggage = mapOf("user-id" to userId, "tenant" to tenantId)
+)) {
     // All children inherit this baggage
     launch { /* has user-id and tenant */ }
 }
@@ -86,7 +86,7 @@ scope.launch(comet.traced("api-request", mapOf(
 ```kotlin
 class UserViewModel : ViewModel() {
     private val comet = Comet.create {
-        exporters(CallbackExporter(
+        exporter(CallbackCoroutineTelemetryExporter(
             onEvent = { event -> Log.d("Comet", event.toString()) }
         ))
         bufferSize(8192)
@@ -116,7 +116,7 @@ class UserViewModel : ViewModel() {
 ```kotlin
 class UserPresenter(private val scope: CoroutineScope) {
     private val comet = Comet.create {
-        exporters(CallbackExporter { event -> println(event) })
+        exporter(CallbackCoroutineTelemetryExporter { event -> println(event) })
         bufferSize(8192)
     }.also { it.start() }
 
@@ -131,7 +131,7 @@ class UserPresenter(private val scope: CoroutineScope) {
 }
 ```
 
-### Access Metrics (Observatory Dashboard)
+### Access Metrics
 
 ```kotlin
 val metrics = comet.metrics
@@ -142,55 +142,59 @@ println("P99 latency: ${metrics.durationStats.p99}")
 println("Failure rate: ${metrics.byOperation["api-call"]?.failureRate}")
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Sampling Strategies
 
 ```kotlin
-import io.pandu.sampling.*
+import io.pandu.sampling.strategy.*
 
 // Always sample (development only)
-samplingStrategy(AlwaysSample)
+samplingStrategy(AlwaysSamplingStrategy)
+
+// Never sample (disable telemetry)
+samplingStrategy(NeverSamplingStrategy)
 
 // Probabilistic (sample X% of root traces)
-samplingStrategy(ProbabilisticSampling(0.1f))
+samplingStrategy(ProbabilisticSamplingStrategy(0.1f))
 
 // Rate limited (max N samples per second)
-samplingStrategy(RateLimitedSampling(maxPerSecond = 100))
+samplingStrategy(RateLimitedSamplingStrategy(maxPerSecond = 100))
 
 // Operation-based (different rates per operation)
-samplingStrategy(OperationBasedSampling(
+samplingStrategy(OperationBasedSamplingStrategy(
     rules = listOf(
-        OperationBasedSampling.OperationRule(Regex("payment-.*"), 1.0f),  // Always observe payments
-        OperationBasedSampling.OperationRule(Regex("health-.*"), 0.01f),  // Rarely observe health checks
+        OperationBasedSamplingStrategy.OperationRule(Regex("payment-.*"), 1.0f),  // Always observe payments
+        OperationBasedSamplingStrategy.OperationRule(Regex("health-.*"), 0.01f),  // Rarely observe health checks
     ),
     defaultRate = 0.1f
 ))
+
+// Composite (combine multiple strategies)
+samplingStrategy(CompositeSamplingStrategy(
+    strategies = listOf(
+        OperationBasedSamplingStrategy(...),
+        RateLimitedSamplingStrategy(maxPerSecond = 1000)
+    ),
+    mode = CompositeSamplingStrategy.Mode.ANY
+))
 ```
 
-### Exporters (Telescopes)
+### Exporters
 
 ```kotlin
-import io.pandu.exporters.*
-
-// In-memory (testing)
-val memExporter = InMemoryExporter()
-exporters(memExporter)
-// Later: memExporter.getEvents()
+import io.pandu.core.telemetry.exporters.*
 
 // Callback (logging, analytics, custom integrations)
-exporters(CallbackExporter(
+exporter(CallbackCoroutineTelemetryExporter(
     onEvent = { event -> println(event) },
     onMetrics = { metrics -> println("Active: ${metrics.activeCoroutines}") }
 ))
 
-// No-op (disable export)
-exporters(NoOpExporter)
-
 // Composite (multiple exporters)
-exporters(CompositeExporter(listOf(
-    InMemoryExporter(),
-    CallbackExporter { event -> sendToBackend(event) }
+exporter(CompositeCoroutineTelemetryExporter(listOf(
+    CallbackCoroutineTelemetryExporter { event -> logToConsole(event) },
+    CallbackCoroutineTelemetryExporter { event -> sendToBackend(event) }
 )))
 ```
 
@@ -212,9 +216,9 @@ val comet = Comet.create {
 }
 ```
 
-## 🔗 Trace Context
+## Trace Context
 
-### Automatic Child Spans ✨
+### Automatic Child Spans
 
 Comet **automatically creates child spans** for nested coroutines:
 
@@ -246,10 +250,10 @@ scope.launch(comet.traced("api-request")) {
 
 ### `withSpan` for Suspend Functions
 
-Use `withSpan` from `io.pandu.tools` to trace blocks within a suspend function:
+Use `withSpan` to trace blocks within a suspend function:
 
 ```kotlin
-import io.pandu.tools.withSpan
+import io.pandu.core.tools.withSpan
 
 suspend fun processOrder(orderId: String) = withSpan("process-order") {
     val order = withSpan("fetch-order") {
@@ -268,27 +272,11 @@ suspend fun processOrder(orderId: String) = withSpan("process-order") {
 
 ### Baggage - Metadata That Propagates
 
-**Baggage** is key-value data that flows through the entire trace:
+Use `withBaggage` to add metadata that flows through the entire trace:
 
 ```kotlin
-// Set baggage at the root
-scope.launch(comet.traced("api-request", mapOf(
-    "user-id" to userId,
-    "tenant-id" to tenantId
-))) {
-    // ALL children inherit baggage automatically!
-    launch(CoroutineName("db-query")) {
-        // ✅ Has user-id and tenant-id
-        database.query()
-    }
+import io.pandu.core.tools.withBaggage
 
-    launch(CoroutineName("cache-lookup")) {
-        // ✅ Has user-id and tenant-id
-        cache.get()
-    }
-}
-
-// Or add baggage mid-trace (import io.pandu.tools.withBaggage)
 scope.launch(comet.traced("process")) {
     withBaggage("order-id", orderId) {
         // Everything in here has order-id
@@ -298,14 +286,6 @@ scope.launch(comet.traced("process")) {
     }
 }
 ```
-
-**Common baggage uses:**
-| Key | Purpose |
-|-----|---------|
-| `user-id` | Track all operations for a user |
-| `request-id` | Correlate logs across services |
-| `tenant-id` | Multi-tenant isolation |
-| `session-id` | User session tracking |
 
 ### Opt-out of Automatic Child Spans
 
@@ -318,28 +298,33 @@ val comet = Comet.create {
 ### HTTP Propagation (Cross-Service Tracking)
 
 ```kotlin
-import io.pandu.tools.currentTraceContext
-import io.pandu.context.TraceContext
+import io.pandu.core.CoroutineTraceContext
+import kotlinx.coroutines.currentCoroutineContext
 
 // Outgoing request - add headers
-val headers = currentTraceContext()?.toHeaders() ?: emptyMap()
-httpClient.get(url) {
-    headers.forEach { (key, value) -> header(key, value) }
+suspend fun makeRequest(url: String) {
+    val traceContext = currentCoroutineContext()[CoroutineTraceContext.Key]
+    val headers = traceContext?.toHeaders() ?: emptyMap()
+    httpClient.get(url) {
+        headers.forEach { (key, value) -> header(key, value) }
+    }
 }
 
 // Incoming request - extract context
-val trace = TraceContext.fromHeaders(request.headers, "handle-request")
-launch(trace ?: TraceContext.create("handle-request")) {
-    processRequest(request)
+fun handleRequest(request: Request) {
+    val trace = CoroutineTraceContext.Key.fromHeaders(request.headers, "handle-request")
+    launch(trace ?: CoroutineTraceContext.Key.create("handle-request")) {
+        processRequest(request)
+    }
 }
 ```
 
-## 📊 Metrics (Observatory Data)
+## Metrics
 
 ### Available Metrics
 
 ```kotlin
-interface TelemetryMetrics {
+interface CoroutineMetrics {
     val activeCoroutines: Long      // Currently in flight
     val totalStarted: Long          // Total launched
     val totalCompleted: Long        // Completed successfully
@@ -348,7 +333,7 @@ interface TelemetryMetrics {
     val totalDropped: Long          // Events dropped (buffer full)
 
     val durationStats: DurationStats  // P50, P90, P99, min, max, mean
-    val byDispatcher: Map<String, DispatcherMetrics>
+    val byDispatcher: Map<String, CoroutineDispatcherMetrics>
     val byOperation: Map<String, OperationMetrics>
 }
 ```
@@ -367,112 +352,15 @@ opMetrics?.let {
 }
 ```
 
-## 🌍 Platform Support
+## Platform Support
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| JVM | ✅ Full | Full stack traces, thread info |
-| Android | ✅ Full | Full stack traces, thread info |
-| iOS | ✅ Partial | Limited stack traces |
+| JVM | Full | Full stack traces, thread info |
+| Android | Full | Full stack traces, thread info |
+| iOS | Partial | Limited stack traces |
 
-## 📺 Visualization (JVM Only)
-
-The optional `comet-visualizer` module provides real-time visualization tools for debugging and development.
-
-```kotlin
-// build.gradle.kts
-dependencies {
-    implementation("io.pandu.comet:comet-sampling:0.1.0")
-    implementation("io.pandu.comet:comet-visualizer:0.1.0")  // Optional
-}
-```
-
-### Quick Demo
-
-Run the built-in demo to see the visualizer in action:
-
-```bash
-cd comet-visualizer
-./gradlew :demo:run
-# Open http://localhost:8080
-```
-
-### Real-time Web UI
-
-Stream traces to a live web dashboard:
-
-```kotlin
-import io.pandu.Comet
-import io.pandu.comet.visualizer.TraceServer
-import io.pandu.comet.visualizer.TraceEvent
-import io.pandu.core.telemetry.exporters.CallbackCoroutineTelemetryExporter
-import kotlinx.serialization.json.Json
-
-val server = TraceServer(port = 8080)
-server.start()
-
-val exporter = CallbackCoroutineTelemetryExporter { event ->
-    val traceEvent = when (event) {
-        is CoroutineStarted -> TraceEvent(
-            type = "started",
-            id = event.coroutineTraceContext?.spanId ?: return@CallbackCoroutineTelemetryExporter,
-            parentId = event.coroutineTraceContext?.parentSpanId,
-            operation = event.coroutineTraceContext?.operationName ?: "coroutine",
-            status = "running",
-            dispatcher = event.dispatcher,
-            timestamp = event.timestamp
-        )
-        is CoroutineCompleted -> TraceEvent(
-            type = "completed",
-            id = event.coroutineTraceContext?.spanId ?: return@CallbackCoroutineTelemetryExporter,
-            parentId = event.coroutineTraceContext?.parentSpanId,
-            operation = event.coroutineTraceContext?.operationName ?: "coroutine",
-            status = "completed",
-            durationMs = event.totalDurationNanos / 1_000_000.0,
-            dispatcher = event.dispatcher,
-            timestamp = event.timestamp
-        )
-        // Handle other event types...
-        else -> return@CallbackCoroutineTelemetryExporter
-    }
-    server.sendEvent(Json.encodeToString(traceEvent))
-}
-
-val comet = Comet.create {
-    exporter(exporter)
-    trackSuspensions(true)
-}
-comet.start()
-
-// Open http://localhost:8080 in browser
-// Run your coroutines - they appear in real-time!
-
-// Cleanup
-comet.shutdown()
-server.stop()
-```
-
-**Features:**
-- Tree view with parent-child relationships
-- Gantt chart timeline with zoom (Ctrl+Scroll)
-- Dark/Light theme toggle
-- Real-time event streaming via SSE
-
-### Development Mode (Hot Reload)
-
-For frontend development with live reload:
-
-```bash
-# Terminal 1: Start SSE backend
-./gradlew :demo:runDev
-
-# Terminal 2: Start frontend dev server
-./gradlew :frontend:jsBrowserDevelopmentRun --continuous
-
-# Open http://localhost:3000 - changes auto-reload!
-```
-
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -480,43 +368,45 @@ For frontend development with live reload:
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │ CoroutineScope + Comet                                  │ │
 │  │                                                          │ │
-│  │  launch(TraceContext) { ... }  ← Coroutine trails       │ │
+│  │  launch(comet.traced("op")) { ... }                     │ │
 │  └─────────────────────────────────────────────────────────┘ │
 └───────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   TelemetryInterceptor                       │
-│         (The Telescope - Observes coroutine lifecycle)       │
+│              (Observes coroutine lifecycle)                  │
 └───────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     EventCollector                           │
-│            (The Observatory - Collects observations)         │
+│                   TelemetryCollector                         │
+│              (Collects and buffers events)                   │
 └───────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                       Exporters                              │
-│     (Star Charts - Send data to external systems)            │
+│           (Send data to external systems)                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 🧪 Testing
+## Testing
 
 ```kotlin
 import io.pandu.Comet
-import io.pandu.sampling.AlwaysSample
-import io.pandu.events.CoroutineCompleted
-import io.pandu.exporters.InMemoryExporter
+import io.pandu.sampling.strategy.AlwaysSamplingStrategy
+import io.pandu.core.telemetry.types.CoroutineCompleted
+import io.pandu.core.telemetry.exporters.CallbackCoroutineTelemetryExporter
 
 @Test
 fun `api call is traced`() = runTest {
-    val exporters = InMemoryExporter()
+    val events = mutableListOf<CoroutineTelemetry>()
     val comet = Comet.create {
-        samplingStrategy(AlwaysSample)
-        exporters(exporters)
+        samplingStrategy(AlwaysSamplingStrategy)
+        exporter(CallbackCoroutineTelemetryExporter { event ->
+            events.add(event)
+        })
         bufferSize(1024)
     }
     comet.start()
@@ -528,36 +418,35 @@ fun `api call is traced`() = runTest {
     advanceUntilIdle()
     comet.flush()
 
-    val events = exporters.getEvents()
     val completed = events.filterIsInstance<CoroutineCompleted>()
     assertTrue(completed.isNotEmpty())
 }
 ```
 
-## 🎯 Best Practices
+## Best Practices
 
 ### Production Configuration
 
 ```kotlin
 import io.pandu.Comet
-import io.pandu.sampling.*
-import io.pandu.exporters.CallbackExporter
+import io.pandu.sampling.strategy.*
+import io.pandu.core.telemetry.exporters.CallbackCoroutineTelemetryExporter
 import kotlin.time.Duration.Companion.seconds
 
 val comet = Comet.create {
     // Sample strategically
-    samplingStrategy(CompositeSampling(
+    samplingStrategy(CompositeSamplingStrategy(
         strategies = listOf(
-            OperationBasedSampling(
+            OperationBasedSamplingStrategy(
                 rules = listOf(
-                    OperationBasedSampling.OperationRule(Regex("payment-.*"), 1.0f),
-                    OperationBasedSampling.OperationRule(Regex("health-.*"), 0.0f),
+                    OperationBasedSamplingStrategy.OperationRule(Regex("payment-.*"), 1.0f),
+                    OperationBasedSamplingStrategy.OperationRule(Regex("health-.*"), 0.0f),
                 ),
                 defaultRate = 0.1f
             ),
-            RateLimitedSampling(maxPerSecond = 1000)
+            RateLimitedSamplingStrategy(maxPerSecond = 1000)
         ),
-        mode = CompositeSampling.Mode.ANY
+        mode = CompositeSamplingStrategy.Mode.ANY
     ))
 
     // Minimize overhead
@@ -574,11 +463,7 @@ val comet = Comet.create {
 }
 ```
 
-## 🤝 Contributing
-
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) first.
-
-## 📜 License
+## License
 
 ```
 Copyright 2025
@@ -590,14 +475,8 @@ You may obtain a copy of the License at
     http://www.apache.org/licenses/LICENSE-2.0
 ```
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Inspired by [OpenTelemetry](https://opentelemetry.io/)
 - Built with [Kotlin Coroutines](https://kotlinlang.org/docs/coroutines-overview.html)
 - Lock-free structures inspired by [JCTools](https://github.com/JCTools/JCTools)
-
----
-
-<p align="center">
-  <i>☄️ "Like astronomers tracking comets across the night sky, Comet helps you observe the trails of coroutines streaking through your application." ☄️</i>
-</p>
