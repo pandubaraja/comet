@@ -207,13 +207,26 @@ val comet = Comet.create {
 
     // Or fine-tune individually
     trackSuspensions(false)      // Skip suspend/resume events
-    includeStackTrace(false)     // No stack traces
+    includeStackTrace(true)      // Capture creation stack traces (file:line)
     includeCoroutineName(true)   // Keep names for debugging
 
     // Buffer settings (must be power of 2)
     bufferSize(65536)            // Larger buffer for high throughput
     flushInterval(30.seconds)    // Less frequent flushes
 }
+```
+
+### Source Location Tracking
+
+Enable `includeStackTrace(true)` to capture where coroutines are created:
+
+```kotlin
+val comet = Comet.create {
+    includeStackTrace(true)  // Enables source file and line number capture
+}
+```
+
+When enabled, `CoroutineStarted` events include `creationStackTrace` with the call site information. This is useful for debugging and visualization tools like [comet-visualizer](https://github.com/pandu-io/comet-visualizer).
 ```
 
 ## Trace Context
