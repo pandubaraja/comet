@@ -6,6 +6,8 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![KMP](https://img.shields.io/badge/KMP-Android%20%7C%20iOS%20%7C%20JVM-blueviolet)](https://kotlinlang.org/docs/multiplatform.html)
 
+![Comet Visualizer](docs/images/comet.png)
+
 ## Features
 
 - **Coroutine Lifecycle Tracking** - Start, suspend, resume, complete, fail, cancel events
