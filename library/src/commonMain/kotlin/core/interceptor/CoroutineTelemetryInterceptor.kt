@@ -93,7 +93,13 @@ internal class CoroutineTelemetryInterceptor(
             // Case 2: Job hierarchy found a parent - create child span from it
             // This takes priority because it's the actual coroutine parent
             config.autoCreateChildSpans && parentSpanFromJob != null -> {
-                val spanName = coroutineName ?: "coroutine"
+                // Check if CoroutineName matches parent's operationName - if so, it was inherited
+                // Use "coroutine" for inherited names to avoid confusion
+                val spanName = if (coroutineName != null && coroutineName != parentSpanFromJob.operationName) {
+                    coroutineName
+                } else {
+                    "coroutine"
+                }
                 parentSpanFromJob.createChildSpan(spanName)
             }
 
