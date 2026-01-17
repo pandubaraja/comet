@@ -86,6 +86,20 @@ internal class CoroutineTelemetryInterceptor(
         // Find parent span by walking up the Job hierarchy (using shared registry)
         val parentSpanFromJob = spanRegistry?.findParentSpan(currentJob) ?: findParentSpanLocal(currentJob)
 
+        // Determine if this coroutine is unstructured (launched outside normal hierarchy)
+        // A coroutine is unstructured if:
+        // 1. CometStorage is not in context (spanRegistry == null) - launched outside Comet's tracked scope
+        // 2. OR trace context indicates a child (has parentSpanId) but no Job parent was found
+        val isUnstructured = when {
+            // No CometStorage in context - coroutine is outside Comet's structured scope
+            spanRegistry == null && (contextCoroutineTraceContext != null || parentSpanFromJob != null) -> true
+
+            // Has parent span ID in trace but Job hierarchy is broken
+            parentSpanFromJob == null && contextCoroutineTraceContext?.parentSpanId != null -> true
+
+            else -> false
+        }
+
         val effectiveTraceContext = when {
             // Case 1: No trace context at all - no tracing
             contextCoroutineTraceContext == null && parentSpanFromJob == null -> null
@@ -138,6 +152,7 @@ internal class CoroutineTelemetryInterceptor(
             coroutineName = coroutineName,
             dispatcherName = dispatcherName,
             currentJob = currentJob,
+            isUnstructured = isUnstructured,
             onSpanRegistered = { job, trace ->
                 if (job != null) {
                     // Use shared registry if available, otherwise local

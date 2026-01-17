@@ -34,6 +34,7 @@ internal class CometContinuation<T>(
     private val coroutineName: String?,
     private val dispatcherName: String,
     private val currentJob: Job?,
+    private val isUnstructured: Boolean = false,
     private val onSpanRegistered: ((Job?, CoroutineTraceContext) -> Unit)? = null,
     private val onSpanCompleted: ((Job?) -> Unit)? = null
 ) : Continuation<T> {
@@ -168,7 +169,8 @@ internal class CometContinuation<T>(
                 dispatcher = dispatcherName,
                 threadName = currentThreadName(),
                 parentCoroutineId = null, // Parent relationship now tracked via traceContext.parentSpanId
-                creationStackTrace = if (config.includeStackTrace) captureStackTrace() else null
+                creationStackTrace = if (config.includeStackTrace) captureStackTrace() else null,
+                isUnstructured = isUnstructured
             )
         )
     }
