@@ -1,6 +1,5 @@
 package io.pandu.core
 
-import io.pandu.Comet
 import io.pandu.config.CometConfig
 import io.pandu.core.interceptor.CoroutineTelemetryInterceptor
 import io.pandu.core.interceptor.CoroutineTelemetryInterceptorFactory
@@ -63,6 +62,6 @@ internal class CometContextElement(
      * with their own dispatcher.
      */
     fun asContext(): CoroutineContext {
-        return this + CometStorage( config, collector)
+        return this + CometStorage(config)
     }
 }

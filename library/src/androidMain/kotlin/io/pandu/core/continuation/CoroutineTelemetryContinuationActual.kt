@@ -8,3 +8,6 @@ internal actual fun captureCurrentStackTrace(maxDepth: Int): List<String>? {
         .take(maxDepth)
         .map { it.toString() }
 }
+
+internal actual fun currentTimeNanos(): Long = System.nanoTime()
+

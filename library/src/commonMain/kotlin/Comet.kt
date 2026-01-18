@@ -11,35 +11,10 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlin.coroutines.CoroutineContext
 
 /**
- * ☄️ Comet - Coroutine Telemetry
+ * Comet - Coroutine Telemetry
  *
  * Simply add Comet to any CoroutineScope or context to enable tracing.
  * No need to replace your existing scopes!
- *
- * ## Basic Usage - Just Add to Context!
- *
- * ```kotlin
- * val comet = Comet.create {
- *     samplingStrategy(ProbabilisticSampling(0.1f))
- *     exporter(LoggingExporter())
- * }
- * comet.start()
- *
- * // Option 1: Add to existing scope's launches
- * existingScope.launch(comet + TraceContext.create("my-operation")) {
- *     // This and all child coroutines are traced!
- *     launch { /* auto traced */ }
- * }
- *
- * // Option 2: Create a new scope with Comet
- * val tracedScope = CoroutineScope(Dispatchers.IO + comet)
- * tracedScope.launch(TraceContext.create("operation")) {
- *     // Traced!
- * }
- *
- * // Option 3: Add to an existing scope permanently
- * val tracedScope = existingScope + comet
- * ```
  *
  * ## How It Works
  *
@@ -49,14 +24,6 @@ import kotlin.coroutines.CoroutineContext
  * 2. Automatically creates child spans for nested coroutines
  * 3. Collects timing and lifecycle events
  * 4. Exports to your configured backends
- *
- * ## Access Metrics
- *
- * ```kotlin
- * val metrics = comet.metrics
- * println("Active: ${metrics.activeCoroutines}")
- * println("P99: ${metrics.durationStats.p99}")
- * ```
  */
 class Comet private constructor(
     private val config: CometConfig,
@@ -72,7 +39,6 @@ class Comet private constructor(
          * val comet = Comet.create {
          *     samplingStrategy(ProbabilisticSampling(0.1f))
          *     exporter(LoggingExporter())
-         *     lowOverheadMode(true)
          * }
          * ```
          */
@@ -126,17 +92,6 @@ class Comet private constructor(
         collector.shutdown()
     }
 
-    /**
-     * Check if telemetry is currently running.
-     */
-    val isActive: Boolean
-        get() = isRunning
-
-    /**
-     * Access the configuration.
-     */
-    val configuration: CometConfig
-        get() = config
 
     // ============================================
     // Context Element Creation
@@ -155,37 +110,6 @@ class Comet private constructor(
      */
     fun traced(operationName: String): CoroutineContext {
         return CometContextElement(config, collector, null).asContext() +
-                CoroutineTraceContext.Key.create(operationName)
-    }
-
-    /**
-     * Create a context element that can be added to any CoroutineScope.
-     *
-     * This wraps the specified dispatcher (or the context's existing dispatcher)
-     * with telemetry interception.
-     *
-     * ```kotlin
-     * // Use with specific dispatcher
-     * scope.launch(comet.asContextElement(Dispatchers.IO)) { ... }
-     *
-     * // Or let it use the scope's dispatcher
-     * scope.launch(comet.asContextElement()) { ... }
-     * ```
-     */
-    fun asContextElement(
-        dispatcher: CoroutineDispatcher? = null
-    ): CoroutineContext {
-        return CometContextElement(config, collector, dispatcher)
-    }
-
-    /**
-     * Operator to easily add Comet to a CoroutineContext.
-     *
-     * ```kotlin
-     * scope.launch(comet + TraceContext.create("op")) { ... }
-     * ```
-     */
-    operator fun plus(context: CoroutineContext): CoroutineContext {
-        return asContextElement() + context
+                CoroutineTraceContext.create(operationName)
     }
 }

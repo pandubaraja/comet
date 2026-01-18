@@ -1,7 +1,6 @@
 package io.pandu.core
 
 import io.pandu.config.CometConfig
-import io.pandu.core.telemetry.types.CoroutineTelemetryCollector
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,7 +15,6 @@ import kotlin.coroutines.CoroutineContext
  */
 internal class CometStorage(
     val config: CometConfig,
-    val collector: CoroutineTelemetryCollector
 ) : AbstractCoroutineContextElement(Key) {
     companion object Key : CoroutineContext.Key<CometStorage>
 

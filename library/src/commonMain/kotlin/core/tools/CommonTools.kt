@@ -2,11 +2,7 @@ package io.pandu.core.tools
 
 import io.pandu.core.CoroutineTraceContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-import kotlinx.atomicfu.atomic
-import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.currentCoroutineContext
 
 /**
@@ -25,32 +21,9 @@ suspend inline fun <T> withSpan(
 ): T {
     val parentTrace = currentCoroutineContext()[CoroutineTraceContext.Key]
     val childTrace = parentTrace?.createChildSpan(operationName)
-        ?: CoroutineTraceContext.Key.create(operationName)
+        ?: CoroutineTraceContext.create(operationName)
 
     return withContext(childTrace) {
-        block()
-    }
-}
-
-/**
- * Add baggage to the current trace context.
- *
- * ```kotlin
- * withBaggage("user-id", userId) {
- *     // All child operations will have this baggage
- * }
- * ```
- */
-suspend inline fun <T> withBaggage(
-    key: String,
-    value: String,
-    crossinline block: suspend CoroutineScope.() -> T
-): T {
-    val currentTrace = currentCoroutineContext()[CoroutineTraceContext.Key]
-        ?: return coroutineScope { block() }
-
-    val newTrace = currentTrace.withBaggage(key, value)
-    return withContext(newTrace) {
         block()
     }
 }

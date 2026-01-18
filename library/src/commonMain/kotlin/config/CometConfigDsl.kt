@@ -19,14 +19,6 @@ class CometConfigDsl {
         builder.exporter(exporter)
     }
 
-    fun trackSuspensions(enabled: Boolean) {
-        builder.trackSuspensions(enabled)
-    }
-
-    fun trackJobHierarchy(enabled: Boolean) {
-        builder.trackJobHierarchy(enabled)
-    }
-
     fun includeStackTrace(enabled: Boolean) {
         builder.includeStackTrace(enabled)
     }
@@ -49,18 +41,6 @@ class CometConfigDsl {
 
     fun onError(handler: (Throwable) -> Unit) {
         builder.errorHandler(handler)
-    }
-
-    fun lowOverheadMode(enabled: Boolean) {
-        builder.lowOverheadMode(enabled)
-    }
-
-    /**
-     * Enable or disable automatic child span creation for nested coroutines.
-     * Default is true (automatic).
-     */
-    fun autoCreateChildSpans(enabled: Boolean) {
-        builder.autoCreateChildSpans(enabled)
     }
 
     internal fun build(): CometConfig = builder.build()

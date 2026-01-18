@@ -4,7 +4,7 @@ import io.pandu.config.CometConfig
 import io.pandu.core.CometStorage
 import io.pandu.core.CoroutineSamplingDecision
 import io.pandu.core.CoroutineTraceContext
-import io.pandu.core.continuation.CometContinuation
+import io.pandu.core.continuation.CoroutineTelemetryContinuation
 import io.pandu.core.continuation.NotSampledContinuation
 import io.pandu.core.telemetry.types.CoroutineTelemetryCollector
 import io.pandu.sampling.SamplingContext
@@ -14,7 +14,6 @@ import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.ContinuationInterceptor
@@ -84,7 +83,7 @@ internal class CoroutineTelemetryInterceptor(
 
         // === AUTO CHILD SPAN CREATION USING JOB HIERARCHY ===
         // Find parent span by walking up the Job hierarchy (using shared registry)
-        val parentSpanFromJob = spanRegistry?.findParentSpan(currentJob) ?: findParentSpanLocal(currentJob)
+        val parentSpanFromJob = spanRegistry?.findParentSpan(currentJob)
 
         // Determine if this coroutine is unstructured (launched outside normal hierarchy)
         // A coroutine is unstructured if:
@@ -106,7 +105,7 @@ internal class CoroutineTelemetryInterceptor(
 
             // Case 2: Job hierarchy found a parent - create child span from it
             // This takes priority because it's the actual coroutine parent
-            config.autoCreateChildSpans && parentSpanFromJob != null -> {
+            parentSpanFromJob != null -> {
                 // Check if CoroutineName matches parent's operationName - if so, it was inherited
                 // Use "coroutine" for inherited names to avoid confusion
                 val spanName = if (coroutineName != null && coroutineName != parentSpanFromJob.operationName) {
@@ -139,19 +138,17 @@ internal class CoroutineTelemetryInterceptor(
         val samplingResult = sampler.shouldSample(samplingContext)
 
         if (!samplingResult.sampled) {
-            // Not sampled - return delegate without wrapping
             return NotSampledContinuation(delegateIntercepted, effectiveTraceContext)
         }
 
         // Wrap with telemetry
-        return CometContinuation(
+        return CoroutineTelemetryContinuation(
             delegate = delegateIntercepted,
             collector = collector,
             config = config,
             coroutineTraceContext = effectiveTraceContext,
             coroutineName = coroutineName,
             dispatcherName = dispatcherName,
-            currentJob = currentJob,
             isUnstructured = isUnstructured,
             onSpanRegistered = { job, trace ->
                 if (job != null) {
@@ -175,31 +172,9 @@ internal class CoroutineTelemetryInterceptor(
         )
     }
 
-    /**
-     * Find the parent span by walking up the Job hierarchy (local fallback).
-     * Returns the TraceContext of the nearest ancestor Job that has a span, or null.
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private fun findParentSpanLocal(currentJob: Job?): CoroutineTraceContext? {
-        if (currentJob == null) return null
-
-        // Walk up the Job hierarchy to find parent with span
-        var parentJob = currentJob.parent
-        while (parentJob != null) {
-            val parentSpan = synchronized(localSpansLock) { localJobToSpan[parentJob] }
-            if (parentSpan != null) {
-                return parentSpan
-            }
-            parentJob = parentJob.parent
-        }
-
-        return null
-    }
-
     override fun releaseInterceptedContinuation(continuation: Continuation<*>) {
         when (continuation) {
-            is CometContinuation<*> -> {
-                continuation.markCompleted()
+            is CoroutineTelemetryContinuation<*> -> {
                 delegate.releaseInterceptedContinuation(continuation.delegate)
             }
             is NotSampledContinuation<*> -> {

@@ -1,12 +1,11 @@
 package io.pandu.core.telemetry.metrics
 
-import io.pandu.core.currentTimeNanos
+import io.pandu.core.continuation.currentTimeNanos
 import io.pandu.core.telemetry.types.CoroutineTelemetry
 import io.pandu.core.telemetry.types.CoroutineStarted
 import io.pandu.core.telemetry.types.CoroutineCompleted
 import io.pandu.core.telemetry.types.CoroutineFailed
 import io.pandu.core.telemetry.types.CoroutineCancelled
-import io.pandu.core.telemetry.types.CoroutineSuspended
 import io.pandu.core.telemetry.types.CoroutineResumed
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.locks.SynchronizedObject
@@ -87,7 +86,7 @@ internal class CoroutineMetricsAggregator {
                 }
             }
 
-            is CoroutineSuspended, is CoroutineResumed -> {
+            is CoroutineResumed -> {
                 // These don't affect aggregate metrics currently
                 // Could track suspension stats per operation if needed
             }

@@ -13,11 +13,4 @@ internal object CoroutineIdGenerator {
      * Generate the next unique coroutine ID.
      */
     fun next(): Long = counter.incrementAndGet()
-
-    /**
-     * Reset the counter (for testing purposes only).
-     */
-    internal fun reset() {
-        counter.value = 0L
-    }
 }
