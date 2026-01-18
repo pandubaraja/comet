@@ -38,6 +38,7 @@ class CometConfig internal constructor(
 
     /**
      * Size of the internal event buffer.
+     * Must be a power of 2 (e.g., 1024, 2048, 4096, 8192).
      * Events are dropped when buffer is full.
      */
     val bufferSize: Int,
@@ -61,7 +62,7 @@ class CometConfig internal constructor(
         private var includeStackTrace: Boolean = false
         private var includeCoroutineName: Boolean = true
         private var maxStackTraceDepth: Int = 20
-        private var bufferSize: Int = 10_000
+        private var bufferSize: Int = 8192
         private var flushInterval: Duration = 10.seconds
         private var errorHandler: (Throwable) -> Unit = {}
 
@@ -92,6 +93,7 @@ class CometConfig internal constructor(
 
         fun bufferSize(size: Int): Builder = apply {
             require(size > 0) { "Buffer size must be positive" }
+            require(size and (size - 1) == 0) { "Buffer size must be a power of 2" }
             this.bufferSize = size
         }
 
