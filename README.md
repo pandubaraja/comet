@@ -1,15 +1,13 @@
 # Comet
+<div align="center">
+  <img src="docs/images/comet.png" alt="Coroutine Telemetry" width="150" />
+</div>
 
 **Coroutine Telemetry** - A lightweight, KMP-compatible observability library for Kotlin Coroutines.
 
 [![Kotlin](https://img.shields.io/badge/kotlin-2.0.21-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![KMP](https://img.shields.io/badge/KMP-Android%20%7C%20iOS%20%7C%20JVM-blueviolet)](https://kotlinlang.org/docs/multiplatform.html)
-
-<p align="center">
-  <img src="docs/images/comet.png" alt="Coroutine Telemetry" width="200" />
-</p>
-<h2 align="center">Coroutine Telemetry</h2>
 
 ## Features
 
@@ -191,6 +189,51 @@ suspend fun processOrder(orderId: String) = withSpan("process-order") {
     }
 }
 ```
+
+## Real-Time Visualization
+
+Use [comet-visualizer](https://github.com/pandu-io/comet-visualizer) for real-time trace visualization in your browser:
+
+```kotlin
+dependencies {
+    implementation("io.pandu.comet:comet:0.1.0")
+    implementation("io.pandu.comet:comet-visualizer:0.1.0")
+}
+```
+
+```kotlin
+import io.pandu.Comet
+import io.pandu.comet.visualizer.TraceServer
+import io.pandu.core.telemetry.exporters.VisualizerJsonExporter
+
+fun main() = runBlocking {
+    // Start the visualizer server
+    val server = TraceServer(port = 8080)
+    server.start()
+
+    // Configure Comet with the visualizer exporter
+    val comet = Comet.create {
+        exporter(VisualizerJsonExporter(server::sendEvent))
+        includeStackTrace(true)  // Enables source file/line display
+    }
+    comet.start()
+
+    // Your traced coroutines
+    launch(comet.traced("my-operation")) {
+        launch(CoroutineName("child-task")) {
+            delay(100)
+        }
+    }
+
+    // Open http://localhost:8080 in your browser
+}
+```
+
+The visualizer provides:
+- **Tree View**: Hierarchical display of coroutine parent-child relationships
+- **Gantt Chart**: Timeline visualization with zoom support
+- **Performance Tab**: Per-operation latency breakdown
+- **Source Location**: Click nodes to see file and line number
 
 ## Platform Support
 
