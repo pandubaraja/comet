@@ -17,6 +17,9 @@
 - **Pluggable Exporters** - Callback-based and composite exporters
 - **KMP Support** - Android, iOS, JVM targets
 
+## Preview
+https://github.com/user-attachments/assets/9d9fb746-a588-4b4c-b1ab-81018c221a96
+
 ## Installation
 
 ```kotlin
