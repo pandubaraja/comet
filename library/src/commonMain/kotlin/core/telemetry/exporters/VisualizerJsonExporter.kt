@@ -119,6 +119,7 @@ class VisualizerJsonExporter(
     /**
      * Parse source location from stack trace.
      * Skips internal Comet/coroutine frames to find user code.
+     * Extracts package path and converts to path format (e.g., "com/example/MyClass.kt").
      */
     private fun parseSourceLocation(stackTrace: List<String>?): Pair<String, Int> {
         if (stackTrace.isNullOrEmpty()) return "" to 0
@@ -130,14 +131,28 @@ class VisualizerJsonExporter(
             !frame.contains("java.lang")
         } ?: stackTrace.firstOrNull() ?: return "" to 0
 
-        val match = Regex("""\((.+):(\d+)\)""").find(userFrame)
-        return if (match != null) {
-            val file = match.groupValues[1]
-            val line = match.groupValues[2].toIntOrNull() ?: 0
-            file to line
+        // Stack trace format: "com.example.MyClass.method(FileName.kt:42)"
+        // Extract: class name before method, filename and line from parentheses
+        val classMatch = Regex("""^([a-zA-Z0-9_.]+)\.[a-zA-Z0-9_<>$]+\(""").find(userFrame)
+        val fileMatch = Regex("""\((.+):(\d+)\)""").find(userFrame)
+
+        if (fileMatch == null) return "" to 0
+
+        val fileName = fileMatch.groupValues[1]
+        val lineNumber = fileMatch.groupValues[2].toIntOrNull() ?: 0
+
+        // Convert package to path format and append filename
+        val packagePath = classMatch?.groupValues?.get(1)
+            ?.substringBeforeLast('.') // Remove class name, keep package
+            ?.replace('.', '/')
+
+        val sourceFile = if (!packagePath.isNullOrEmpty()) {
+            "$packagePath/$fileName"
         } else {
-            "" to 0
+            fileName
         }
+
+        return sourceFile to lineNumber
     }
 }
 
