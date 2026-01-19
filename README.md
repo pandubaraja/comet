@@ -192,7 +192,7 @@ suspend fun processOrder(orderId: String) = withSpan("process-order") {
 
 ## Real-Time Visualization
 
-Use [comet-visualizer](https://github.com/pandu-io/comet-visualizer) for real-time trace visualization in your browser:
+Use [comet-visualizer](https://github.com/pandubaraja/comet-visualizer) for real-time trace visualization in your browser:
 
 ```kotlin
 dependencies {
