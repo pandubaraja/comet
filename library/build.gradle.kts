@@ -57,10 +57,7 @@ kotlin {
 
 mavenPublishing {
     publishToMavenCentral()
-
-    if (System.getenv("CI") != null) {
-        signAllPublications()
-    }
+    signAllPublications()
 
     coordinates("io.github.pandubaraja", "comet", version.toString())
 
