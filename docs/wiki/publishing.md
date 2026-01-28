@@ -70,13 +70,13 @@ Test the build locally first:
 Verify the artifact exists:
 
 ```bash
-ls ~/.m2/repository/io/pandu/comet/comet/0.1.0/
+ls ~/.m2/repository/io/github/pandubaraja/comet/0.1.0/
 ```
 
 Check the POM contains correct license, developer, and scm fields:
 
 ```bash
-cat ~/.m2/repository/io/pandu/comet/comet/0.1.0/comet-0.1.0.pom
+cat ~/.m2/repository/io/github/pandubaraja/comet/0.1.0/comet-0.1.0.pom
 ```
 
 ### Publish to Maven Central
