@@ -25,7 +25,7 @@ https://github.com/user-attachments/assets/9d9fb746-a588-4b4c-b1ab-81018c221a96
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.pandu.comet:comet-core:0.1.0")
+    implementation("io.pandu.comet:comet:0.1.0")
 }
 ```
 
