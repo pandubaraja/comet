@@ -62,31 +62,31 @@ mavenPublishing {
         signAllPublications()
     }
 
-    coordinates(group.toString(), "comet-core", version.toString())
+    coordinates("io.pandu.comet", "comet", version.toString())
 
     pom {
-        name = "comet"
-        description = "We are the astronomers, observing the trails of coroutines as they streak across your application."
+        name = "Comet"
+        description = "Lightweight KMP coroutine telemetry library — trace, observe, and visualize Kotlin coroutines."
         inceptionYear = "2025"
         url = "https://github.com/pandubaraja/comet/"
         licenses {
             license {
-                name = "XXX"
-                url = "YYY"
-                distribution = "ZZZ"
+                name = "The Apache License, Version 2.0"
+                url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                distribution = "repo"
             }
         }
         developers {
             developer {
-                id = "XXX"
-                name = "YYY"
-                url = "ZZZ"
+                id = "pandubaraja"
+                name = "Pandu Baraja"
+                url = "https://github.com/pandubaraja"
             }
         }
         scm {
-            url = "XXX"
-            connection = "YYY"
-            developerConnection = "ZZZ"
+            url = "https://github.com/pandubaraja/comet"
+            connection = "scm:git:git://github.com/pandubaraja/comet.git"
+            developerConnection = "scm:git:ssh://git@github.com/pandubaraja/comet.git"
         }
     }
 }
