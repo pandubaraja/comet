@@ -19,7 +19,7 @@ In your **shared module's** `build.gradle.kts`:
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.pandu.comet:comet:0.1.0")
+            implementation("io.github.pandubaraja:comet:0.1.0")
         }
     }
 }
@@ -32,7 +32,7 @@ If you want to use Comet directly in your Android app module:
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("io.pandu.comet:comet:0.1.0")
+    implementation("io.github.pandubaraja:comet:0.1.0")
 }
 ```
 

@@ -12,7 +12,7 @@ This guide covers the full flow for publishing Comet to Maven Central. Once publ
 ## 1. Maven Central Setup
 
 1. Register at [central.sonatype.com](https://central.sonatype.com)
-2. Create a namespace for `io.pandu.comet`
+2. Create a namespace for `io.github.pandubaraja`
 3. Verify ownership via DNS TXT record or GitHub proof
 
 ## 2. GPG Key Setup
@@ -95,5 +95,5 @@ No action needed. [klibs.io](https://klibs.io) automatically indexes KMP librari
 
 | Artifact | Coordinates |
 |----------|------------|
-| Core library | `io.pandu.comet:comet:0.1.0` |
-| Visualizer (future) | `io.pandu.comet:comet-visualizer:0.1.0` |
+| Core library | `io.github.pandubaraja:comet:0.1.0` |
+| Visualizer (future) | `io.github.pandubaraja:comet-visualizer:0.1.0` |

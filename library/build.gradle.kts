@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.vanniktech.mavenPublish)
 }
 
-group = "io.pandu.comet"
+group = "io.github.pandubaraja"
 version = "0.1.0"
 
 kotlin {
@@ -62,7 +62,7 @@ mavenPublishing {
         signAllPublications()
     }
 
-    coordinates("io.pandu.comet", "comet", version.toString())
+    coordinates("io.github.pandubaraja", "comet", version.toString())
 
     pom {
         name = "Comet"
