@@ -15,7 +15,7 @@ Add the dependency to your app module's `build.gradle.kts`:
 ```kotlin
 // app/build.gradle.kts
 dependencies {
-    implementation("io.github.pandubaraja:comet:0.1.0")
+    implementation("io.github.pandubaraja:comet:0.2.0")
 
     // Required: coroutines (you likely already have this)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")

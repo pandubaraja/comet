@@ -23,7 +23,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.pandubaraja:comet:0.1.0")
+            implementation("io.github.pandubaraja:comet:0.2.0")
         }
     }
 }

@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "io.github.pandubaraja"
-version = "0.1.0"
+version = "0.2.0"
 
 kotlin {
     androidLibrary {
@@ -63,8 +63,8 @@ mavenPublishing {
 
     pom {
         name = "Comet"
-        description = "Lightweight KMP coroutine telemetry library — trace, observe, and visualize Kotlin coroutines."
-        inceptionYear = "2025"
+        description = "Comet (Coroutine Telemetry) is a Kotlin Multiplatform library for observing structured concurrency in Kotlin Coroutines. It enables tracing and visualization of coroutine execution by exposing coroutine hierarchies, lifecycles, suspension points, execution timing, and failure propagation across platforms, enabling deep analysis of coroutine behavior."
+        inceptionYear = "2026"
         url = "https://github.com/pandubaraja/comet/"
         licenses {
             license {
