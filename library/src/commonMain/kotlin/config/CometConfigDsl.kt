@@ -43,5 +43,9 @@ class CometConfigDsl {
         builder.errorHandler(handler)
     }
 
+    fun excludedCoroutinePackages(packages: Set<String>) {
+        builder.excludedCoroutinePackages(packages)
+    }
+
     internal fun build(): CometConfig = builder.build()
 }

@@ -51,7 +51,14 @@ class CometConfig internal constructor(
     /**
      * Handler for internal telemetry errors.
      */
-    val errorHandler: (Throwable) -> Unit
+    val errorHandler: (Throwable) -> Unit,
+
+    /**
+     * Package prefixes whose coroutines should be filtered out from traces.
+     * Coroutines originating from these packages (e.g. Ktor internals) will not
+     * appear as child spans.
+     */
+    val excludedCoroutinePackages: Set<String> = emptySet()
 ) {
     /**
      * Builder for TelemetryConfig.
@@ -65,6 +72,9 @@ class CometConfig internal constructor(
         private var bufferSize: Int = 8192
         private var flushInterval: Duration = 10.seconds
         private var errorHandler: (Throwable) -> Unit = {}
+        private var excludedCoroutinePackages: MutableSet<String> = mutableSetOf(
+            "io.ktor",
+        )
 
         fun samplingStrategy(strategy: SamplingStrategy): Builder = apply {
             this.samplingStrategy = strategy
@@ -106,6 +116,10 @@ class CometConfig internal constructor(
             this.errorHandler = handler
         }
 
+        fun excludedCoroutinePackages(packages: Set<String>): Builder = apply {
+            this.excludedCoroutinePackages = packages.toMutableSet()
+        }
+
         fun build(): CometConfig {
             return CometConfig(
                 samplingStrategy = samplingStrategy,
@@ -116,6 +130,7 @@ class CometConfig internal constructor(
                 bufferSize = bufferSize,
                 flushInterval = flushInterval,
                 errorHandler = errorHandler,
+                excludedCoroutinePackages = excludedCoroutinePackages,
             )
         }
     }

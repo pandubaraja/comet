@@ -232,3 +232,9 @@ internal expect fun captureCurrentStackTrace(maxDepth: Int): List<String>?
  * Platform-specific time provider.
  */
 internal expect fun currentTimeNanos(): Long
+
+/**
+ * Platform-specific: Check if the continuation's origin or the current call stack
+ * contains frames from excluded packages.
+ */
+internal expect fun isFromExcludedPackage(prefixes: Set<String>, continuation: kotlin.coroutines.Continuation<*>? = null): Boolean

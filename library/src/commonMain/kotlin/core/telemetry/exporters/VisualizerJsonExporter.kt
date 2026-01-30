@@ -129,7 +129,7 @@ class VisualizerJsonExporter(
             !frame.contains("kotlin.coroutines") &&
             !frame.contains("kotlinx.coroutines") &&
             !frame.contains("java.lang")
-        } ?: stackTrace.firstOrNull() ?: return "" to 0
+        } ?: return "" to 0
 
         // Stack trace format: "com.example.MyClass.method(FileName.kt:42)"
         // Extract: class name before method, filename and line from parentheses

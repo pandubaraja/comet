@@ -25,7 +25,7 @@ https://github.com/user-attachments/assets/9d9fb746-a588-4b4c-b1ab-81018c221a96
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.github.pandubaraja:comet:0.2.0")
+    implementation("io.github.pandubaraja:comet:0.3.0")
 }
 ```
 
@@ -216,8 +216,8 @@ Use [comet-visualizer](https://github.com/pandubaraja/comet-visualizer) for real
 
 ```kotlin
 dependencies {
-    implementation("io.github.pandubaraja:comet:0.2.0")
-    implementation("io.github.pandubaraja:comet-visualizer:0.2.0")
+    implementation("io.github.pandubaraja:comet:0.3.0")
+    implementation("io.github.pandubaraja:comet-visualizer:0.3.0")
 }
 ```
 
