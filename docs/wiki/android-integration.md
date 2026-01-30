@@ -5,7 +5,6 @@ This guide walks you through integrating the Comet coroutine telemetry library i
 ## Prerequisites
 
 - Kotlin Multiplatform project with Android target
-- Kotlin 2.0+ and Gradle 8+
 - `kotlinx-coroutines` dependency
 - Android `minSdk 21` or higher
 
@@ -151,7 +150,76 @@ class OrderRepository(private val api: OrderApi, private val db: OrderDao) {
 }
 ```
 
-## 5. Sampling Strategies for Production
+## 5. Preserving Traces with `withContext`
+
+When you switch dispatchers using `withContext`, the coroutine interceptor is replaced,
+which means Comet's tracing stops for any `launch` or `async` inside that block.
+
+### The Problem
+
+```kotlin
+viewModelScope.launch(comet.traced("load-data")) {
+    withContext(Dispatchers.IO) {
+        // Comet interceptor is REPLACED by Dispatchers.IO
+        val result = async(CoroutineName("fetch")) { api.getData() }  // NOT traced!
+        result.await()
+    }
+}
+```
+
+### Solution 1: `Dispatchers.IO.traced()` (Recommended)
+
+Use the `.traced()` suspend extension to re-wrap the dispatcher with Comet's telemetry.
+It auto-discovers Comet from the current coroutine context — no `comet` reference needed.
+
+```kotlin
+viewModelScope.launch(comet.traced("load-data")) {
+    withContext(Dispatchers.IO.traced()) {
+        val result = async(CoroutineName("fetch")) { api.getData() }  // Traced!
+        result.await()
+    }
+}
+```
+
+### Solution 2: `comet.traced(Dispatchers.IO)`
+
+Use `comet.traced(dispatcher)` to explicitly wrap a dispatcher. This works even
+outside a traced coroutine context.
+
+```kotlin
+viewModelScope.launch(comet.traced("load-data")) {
+    withContext(comet.traced(Dispatchers.IO)) {
+        val result = async(CoroutineName("fetch")) { api.getData() }  // Traced!
+        result.await()
+    }
+}
+```
+
+### When You Don't Need `.traced()`
+
+If you use `launch` or `async` with a dispatcher parameter (instead of `withContext`),
+the parent's Comet interceptor is preserved:
+
+```kotlin
+viewModelScope.launch(comet.traced("load-data")) {
+    // These preserve the Comet interceptor — no .traced() needed
+    val result = async(Dispatchers.IO + CoroutineName("fetch")) { api.getData() }
+    result.await()
+}
+```
+
+### Summary
+
+| Pattern | Traced? |
+|---------|---------|
+| `launch(comet.traced("op")) { launch { ... } }` | Yes |
+| `launch(comet.traced("op")) { async { ... } }` | Yes |
+| `withContext(Dispatchers.IO) { launch { ... } }` | No |
+| `withContext(Dispatchers.IO.traced()) { launch { ... } }` | Yes |
+| `withContext(comet.traced(Dispatchers.IO)) { launch { ... } }` | Yes |
+| `async(Dispatchers.IO) { ... }` | Yes (inherits parent interceptor) |
+
+## 6. Sampling Strategies for Production
 
 Choose the right strategy based on your needs:
 
@@ -190,7 +258,7 @@ samplingStrategy(CompositeSamplingStrategy(
 ))
 ```
 
-## 6. Real-Time Visualization (Debug Builds)
+## 7. Real-Time Visualization (Debug Builds)
 
 You can visualize coroutine traces in real-time using the **comet-visualizer** web UI from your laptop browser while the app runs on an emulator.
 
@@ -272,7 +340,7 @@ adb forward tcp:8080 tcp:8080
 
 Then browse `http://localhost:8080` on your laptop.
 
-## 7. Production Configuration
+## 8. Production Configuration
 
 ### Build-variant-aware setup
 
@@ -342,7 +410,7 @@ class MyApplication : Application() {
 }
 ```
 
-## 8. Full Example
+## 9. Full Example
 
 Here's a complete minimal setup:
 

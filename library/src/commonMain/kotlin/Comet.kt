@@ -3,6 +3,7 @@ package io.pandu
 import io.pandu.config.CometConfig
 import io.pandu.config.CometConfigDsl
 import io.pandu.core.CometContextElement
+import io.pandu.core.CometDispatcher
 import io.pandu.core.CoroutineTraceContext
 import io.pandu.core.telemetry.types.CoroutineTelemetryCollector
 import io.pandu.core.telemetry.metrics.CoroutineMetrics
@@ -111,5 +112,21 @@ class Comet private constructor(
     fun traced(operationName: String): CoroutineContext {
         return CometContextElement(config, collector, null).asContext() +
                 CoroutineTraceContext.create(operationName)
+    }
+
+    /**
+     * Wrap a dispatcher with Comet tracing.
+     * Use this with `withContext` to preserve tracing when switching dispatchers.
+     *
+     * ```kotlin
+     * scope.launch(comet.traced("operation")) {
+     *     withContext(comet.traced(Dispatchers.IO)) {
+     *         async { ... } // still traced
+     *     }
+     * }
+     * ```
+     */
+    fun traced(dispatcher: CoroutineDispatcher): CoroutineContext {
+        return dispatcher + CometDispatcher(dispatcher, config, collector, config.samplingStrategy)
     }
 }
