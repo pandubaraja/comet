@@ -3,6 +3,7 @@ package io.pandu.core
 import io.pandu.config.CometConfig
 import io.pandu.core.continuation.CoroutineTelemetryContinuation
 import io.pandu.core.continuation.NotSampledContinuation
+import io.pandu.core.continuation.isFromExcludedPackage
 import io.pandu.core.telemetry.types.CoroutineTelemetryCollector
 import io.pandu.sampling.SamplingContext
 import io.pandu.sampling.strategy.SamplingStrategy
@@ -41,14 +42,55 @@ internal fun <T> createTelemetryContinuation(
     // Find parent span by walking up the Job hierarchy
     val parentSpanFromJob = spanRegistry?.findParentSpan(currentJob)
 
+    // Ghost detection: if context already has CoroutineTrackedMarker (inherited from a
+    // tracked parent) but no parent span exists in the Job registry, this is a
+    // framework-internal resumption continuation — not a real child coroutine.
+    val alreadyTracked = context[CoroutineTrackedMarker.Key] != null
+    // Ghost type 1: marker inherited, parent already completed/unregistered
+    if (alreadyTracked && parentSpanFromJob == null && contextCoroutineTraceContext != null) {
+        return delegateIntercepted
+    }
+    // Ghost type 2: unnamed re-dispatch (coroutineScope resume, await resume)
+    if (alreadyTracked && parentSpanFromJob != null) {
+        val isNamedChild = coroutineName != null && coroutineName != parentSpanFromJob.operationName
+        if (!isNamedChild) {
+            return delegateIntercepted
+        }
+    }
+    // Ghost type 3: inherited root context without marker (e.g. ResumeAwaitOnCompletion).
+    // Detected by checking if a span with the same spanId is already registered —
+    // meaning the real root coroutine was already wrapped.
+    if (!alreadyTracked && parentSpanFromJob == null
+        && contextCoroutineTraceContext != null
+        && contextCoroutineTraceContext.parentSpanId == null
+        && spanRegistry != null
+        && spanRegistry.isSpanRegistered(contextCoroutineTraceContext.spanId)) {
+        return delegateIntercepted
+    }
+
     val isUnstructured = when {
         spanRegistry == null && (contextCoroutineTraceContext != null || parentSpanFromJob != null) -> true
         parentSpanFromJob == null && contextCoroutineTraceContext?.parentSpanId != null -> true
         else -> false
     }
 
+    // Check if this coroutine originated from an excluded package (e.g. Ktor internals)
+    val isExcluded = parentSpanFromJob != null &&
+        config.excludedCoroutinePackages.isNotEmpty() &&
+        isFromExcludedPackage(config.excludedCoroutinePackages, continuation)
+
     val effectiveTraceContext = when {
         contextCoroutineTraceContext == null && parentSpanFromJob == null -> null
+        isExcluded -> null
+        contextCoroutineTraceContext != null && parentSpanFromJob != null -> {
+            // Coroutine has explicit trace context and a traced parent — create child span
+            val spanName = if (coroutineName != null && coroutineName != parentSpanFromJob.operationName) {
+                coroutineName
+            } else {
+                "coroutine"
+            }
+            parentSpanFromJob.createChildSpan(spanName)
+        }
         parentSpanFromJob != null -> {
             val spanName = if (coroutineName != null && coroutineName != parentSpanFromJob.operationName) {
                 coroutineName
@@ -59,6 +101,11 @@ internal fun <T> createTelemetryContinuation(
         }
         contextCoroutineTraceContext != null -> contextCoroutineTraceContext
         else -> null
+    }
+
+    // Coroutines with no effective trace context don't belong to any trace — skip them
+    if (effectiveTraceContext == null) {
+        return delegateIntercepted
     }
 
     val samplingContext = SamplingContext(
