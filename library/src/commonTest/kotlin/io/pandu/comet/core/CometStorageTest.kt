@@ -2,6 +2,8 @@ package io.pandu.comet.core
 
 import io.pandu.config.CometConfig
 import io.pandu.core.CometStorage
+import io.pandu.core.telemetry.types.CoroutineTelemetryCollector
+import io.pandu.core.telemetry.exporters.CallbackCoroutineTelemetryExporter
 import io.pandu.core.CoroutineTraceContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -17,8 +19,11 @@ import kotlin.test.assertNull
 class CometStorageTest {
 
     private fun createStorage(): CometStorage {
-        val config = CometConfig.Builder().build()
-        return CometStorage(config)
+        val config = CometConfig.Builder()
+            .exporter(CallbackCoroutineTelemetryExporter(onEvent = {}))
+            .build()
+        val collector = CoroutineTelemetryCollector(config)
+        return CometStorage(config, collector, config.samplingStrategy)
     }
 
     // =====================================================================
@@ -219,8 +224,10 @@ class CometStorageTest {
     fun `CometStorage exposes config`() {
         val config = CometConfig.Builder()
             .bufferSize(1024)
+            .exporter(CallbackCoroutineTelemetryExporter(onEvent = {}))
             .build()
-        val storage = CometStorage(config)
+        val collector = CoroutineTelemetryCollector(config)
+        val storage = CometStorage(config, collector, config.samplingStrategy)
 
         assertEquals(1024, storage.config.bufferSize)
     }

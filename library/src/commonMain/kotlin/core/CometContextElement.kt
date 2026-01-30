@@ -62,6 +62,6 @@ internal class CometContextElement(
      * with their own dispatcher.
      */
     fun asContext(): CoroutineContext {
-        return this + CometStorage(config)
+        return this + CometStorage(config, collector, config.samplingStrategy)
     }
 }

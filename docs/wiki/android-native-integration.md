@@ -185,7 +185,76 @@ class SyncWorker(
 }
 ```
 
-## 7. Sampling Strategies
+## 7. Preserving Traces with `withContext`
+
+When you switch dispatchers using `withContext`, the coroutine interceptor is replaced,
+which means Comet's tracing stops for any `launch` or `async` inside that block.
+
+### The Problem
+
+```kotlin
+viewModelScope.launch(comet.traced("load-data")) {
+    withContext(Dispatchers.IO) {
+        // Comet interceptor is REPLACED by Dispatchers.IO
+        val result = async(CoroutineName("fetch")) { api.getData() }  // NOT traced!
+        result.await()
+    }
+}
+```
+
+### Solution 1: `Dispatchers.IO.traced()` (Recommended)
+
+Use the `.traced()` suspend extension to re-wrap the dispatcher with Comet's telemetry.
+It auto-discovers Comet from the current coroutine context — no `comet` reference needed.
+
+```kotlin
+viewModelScope.launch(comet.traced("load-data")) {
+    withContext(Dispatchers.IO.traced()) {
+        val result = async(CoroutineName("fetch")) { api.getData() }  // Traced!
+        result.await()
+    }
+}
+```
+
+### Solution 2: `comet.traced(Dispatchers.IO)`
+
+Use `comet.traced(dispatcher)` to explicitly wrap a dispatcher. This works even
+outside a traced coroutine context.
+
+```kotlin
+viewModelScope.launch(comet.traced("load-data")) {
+    withContext(comet.traced(Dispatchers.IO)) {
+        val result = async(CoroutineName("fetch")) { api.getData() }  // Traced!
+        result.await()
+    }
+}
+```
+
+### When You Don't Need `.traced()`
+
+If you use `launch` or `async` with a dispatcher parameter (instead of `withContext`),
+the parent's Comet interceptor is preserved:
+
+```kotlin
+viewModelScope.launch(comet.traced("load-data")) {
+    // These preserve the Comet interceptor — no .traced() needed
+    val result = async(Dispatchers.IO + CoroutineName("fetch")) { api.getData() }
+    result.await()
+}
+```
+
+### Summary
+
+| Pattern | Traced? |
+|---------|---------|
+| `launch(comet.traced("op")) { launch { ... } }` | Yes |
+| `launch(comet.traced("op")) { async { ... } }` | Yes |
+| `withContext(Dispatchers.IO) { launch { ... } }` | No |
+| `withContext(Dispatchers.IO.traced()) { launch { ... } }` | Yes |
+| `withContext(comet.traced(Dispatchers.IO)) { launch { ... } }` | Yes |
+| `async(Dispatchers.IO) { ... }` | Yes (inherits parent interceptor) |
+
+## 8. Sampling Strategies
 
 Choose the right strategy for your environment:
 
@@ -215,7 +284,7 @@ samplingStrategy(OperationBasedSamplingStrategy(
 ))
 ```
 
-## 8. Real-Time Visualization (Debug Builds)
+## 9. Real-Time Visualization (Debug Builds)
 
 Visualize coroutine traces in real-time on your laptop browser while the app runs on an emulator or device.
 
@@ -260,7 +329,7 @@ Browse to `http://localhost:8080` on your laptop. You'll see:
 - **Source Location** — file and line number per coroutine
 - **Stats** — running, completed, failed, cancelled counts
 
-## 9. Production Configuration
+## 10. Production Configuration
 
 ### Build-variant-aware setup
 
@@ -330,7 +399,7 @@ class MyApplication : Application() {
 | `bufferSize` | `8192` | `4096` |
 | `flushInterval` | `1.seconds` | `10.seconds` (default) |
 
-## 10. Accessing Metrics
+## 11. Accessing Metrics
 
 Read real-time metrics anywhere in your app:
 

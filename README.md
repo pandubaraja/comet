@@ -3,9 +3,9 @@
   <img src="docs/images/comet.png" alt="Coroutine Telemetry" width="150" />
 </div>
 
-**Coroutine Telemetry** - A lightweight, KMP-compatible observability library for Kotlin Coroutines.
+**Coroutine Telemetry** a Kotlin Multiplatform library for observing structured concurrency in Kotlin Coroutines. It enables tracing and visualization of coroutine execution by exposing coroutine hierarchies, lifecycles, suspension points, execution timing, and failure propagation across platforms, enabling deep analysis of coroutine behavior.
 
-[![Kotlin](https://img.shields.io/badge/kotlin-2.0.21-blue.svg?logo=kotlin)](http://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.2.20-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![KMP](https://img.shields.io/badge/KMP-Android%20%7C%20iOS%20%7C%20JVM-blueviolet)](https://kotlinlang.org/docs/multiplatform.html)
 
@@ -44,7 +44,6 @@ val comet = Comet.create {
         onEvent = { event -> println("[Comet] $event") },
         onMetrics = { metrics -> println("[Metrics] Active: ${metrics.activeCoroutines}") }
     ))
-    trackSuspensions(true)
     bufferSize(8192)  // Must be a power of 2
 }
 comet.start()
@@ -96,7 +95,7 @@ class UserViewModel : ViewModel() {
     fun getStats() = comet.metrics
 
     override fun onCleared() {
-        runBlocking { comet.shutdown() }
+        viewModelScope.launch { comet.shutdown() }
     }
 }
 ```
@@ -120,6 +119,25 @@ class UserPresenter(private val scope: CoroutineScope) {
     }
 }
 ```
+
+### Using `withContext` with Comet
+
+When switching dispatchers with `withContext`, use `.traced()` to preserve tracing:
+
+```kotlin
+scope.launch(comet.traced("operation")) {
+    // Use .traced() to keep tracing when switching dispatchers
+    withContext(Dispatchers.IO.traced()) {
+        val data = async(CoroutineName("fetch")) { api.getData() }
+        data.await()
+    }
+}
+```
+
+> **Why?** `withContext` replaces the coroutine interceptor. `.traced()` re-wraps
+> the new dispatcher with Comet's telemetry. Without it, child coroutines
+> inside `withContext` won't be traced.
+
 ## Configuration
 
 ### Sampling Strategies
@@ -168,8 +186,7 @@ val comet = Comet.create {
 }
 ```
 
-When enabled, `CoroutineStarted` events include `creationStackTrace` with the call site information. This is useful for debugging and visualization tools like [comet-visualizer](https://github.com/pandu-io/comet-visualizer).
-```
+When enabled, `CoroutineStarted` events include `creationStackTrace` with the call site information. This is useful for debugging and visualization tools like [comet-visualizer](https://github.com/pandubaraja/comet-visualizer).
 
 ### `withSpan` for Suspend Functions
 
@@ -237,6 +254,10 @@ The visualizer provides:
 - **Gantt Chart**: Timeline visualization with zoom support
 - **Performance Tab**: Per-operation latency breakdown
 - **Source Location**: Click nodes to see file and line number
+
+## Demo App
+
+See [comet-demo](https://github.com/pandubaraja/comet-demo) for a full KMP sample app (Android + iOS) demonstrating Comet and comet-visualizer integration with real API calls and various coroutine patterns.
 
 ## Platform Support
 

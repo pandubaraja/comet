@@ -1,10 +1,8 @@
-package io.pandu.core.interceptor
+package io.pandu.core
 
 import io.pandu.config.CometConfig
-import io.pandu.core.CoroutineTraceContext
 import io.pandu.core.continuation.CoroutineTelemetryContinuation
 import io.pandu.core.continuation.NotSampledContinuation
-import io.pandu.core.createTelemetryContinuation
 import io.pandu.core.telemetry.types.CoroutineTelemetryCollector
 import io.pandu.sampling.strategy.SamplingStrategy
 import kotlinx.atomicfu.locks.SynchronizedObject
@@ -16,31 +14,22 @@ import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 
 /**
- * ContinuationInterceptor that wraps coroutines with telemetry tracking.
+ * A [CoroutineDispatcher] that wraps another dispatcher while adding telemetry interception.
  *
- * This interceptor delegates to an underlying dispatcher while adding
- * telemetry collection around coroutine execution.
+ * Since [CoroutineDispatcher.interceptContinuation] is final, this class works by
+ * composing the delegate dispatcher's dispatch behavior with a custom [ContinuationInterceptor]
+ * implementation. It extends [CoroutineDispatcher] to provide dispatch/isDispatchNeeded,
+ * and implements [ContinuationInterceptor] directly for continuation wrapping.
  *
- * **Automatic Child Span Creation:**
- * When a coroutine is launched within a traced context, a child span is
- * automatically created. This means users don't need to manually create
- * child spans for every `launch` or `async`.
- *
- * Usage:
+ * Use this when switching dispatchers with `withContext` to preserve Comet tracing:
  * ```
- * val comet = Comet.create(config)
- * val scope = CoroutineScope(Dispatchers.IO + comet)
- *
- * // Root trace - user creates this
- * scope.launch(TraceContext.create("parent-operation")) {
- *     // Child coroutines automatically get child spans!
- *     launch { /* auto child span */ }
- *     async { /* auto child span */ }
+ * withContext(Dispatchers.IO.traced()) {
+ *     async { ... } // still traced
  * }
  * ```
  */
-internal class CoroutineTelemetryInterceptor(
-    private val delegate: ContinuationInterceptor,
+internal class CometDispatcher(
+    private val delegate: CoroutineDispatcher,
     private val config: CometConfig,
     private val collector: CoroutineTelemetryCollector,
     private val sampler: SamplingStrategy
@@ -52,10 +41,8 @@ internal class CoroutineTelemetryInterceptor(
     private val localJobToSpan = mutableMapOf<Job, CoroutineTraceContext>()
     private val localSpansLock = SynchronizedObject()
 
-    override fun <T> interceptContinuation(
-        continuation: Continuation<T>
-    ): Continuation<T> {
-        // First, let the delegate intercept (handles actual dispatching)
+    override fun <T> interceptContinuation(continuation: Continuation<T>): Continuation<T> {
+        // Let the delegate intercept (handles actual dispatching)
         val delegateIntercepted = delegate.interceptContinuation(continuation)
 
         return createTelemetryContinuation(
@@ -84,16 +71,12 @@ internal class CoroutineTelemetryInterceptor(
         }
     }
 
-    /**
-     * Get a readable name for the dispatcher.
-     */
-    private fun getDispatcherName(interceptor: ContinuationInterceptor): String {
-        return when (interceptor) {
+    private fun getDispatcherName(dispatcher: CoroutineDispatcher): String {
+        return when (dispatcher) {
             Dispatchers.Default -> "Dispatchers.Default"
             Dispatchers.Main -> "Dispatchers.Main"
             Dispatchers.Unconfined -> "Dispatchers.Unconfined"
-            is CoroutineDispatcher -> interceptor.toString()
-            else -> interceptor::class.simpleName ?: "Unknown"
+            else -> dispatcher.toString()
         }
     }
 }
