@@ -4,6 +4,8 @@ import io.pandu.config.CometConfig
 import io.pandu.config.CometConfigDsl
 import io.pandu.core.CometContextElement
 import io.pandu.core.CometDispatcher
+import io.pandu.core.CometStorage
+import io.pandu.core.CometTracedContext
 import io.pandu.core.CoroutineTraceContext
 import io.pandu.core.telemetry.types.CoroutineTelemetryCollector
 import io.pandu.core.telemetry.metrics.CoroutineMetrics
@@ -110,8 +112,10 @@ class Comet private constructor(
      * ```
      */
     fun traced(operationName: String): CoroutineContext {
-        return CometContextElement(config, collector, null).asContext() +
-                CoroutineTraceContext.create(operationName)
+        val element = CometContextElement(config, collector, null)
+        val storage = CometStorage(config, collector, config.samplingStrategy)
+        val traceContext = CoroutineTraceContext.create(operationName)
+        return CometTracedContext(element, storage + traceContext)
     }
 
     /**

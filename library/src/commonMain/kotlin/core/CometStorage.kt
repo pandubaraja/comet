@@ -31,19 +31,33 @@ internal class CometStorage(
      */
     internal class SpanRegistry {
         private val jobToSpan = mutableMapOf<Job, CoroutineTraceContext>()
+        private val registeredSpanIds = mutableSetOf<String>()
         private val lock = SynchronizedObject()
 
         fun register(job: Job?, span: CoroutineTraceContext) {
             if (job == null) return
             synchronized(lock) {
-                jobToSpan[job] = span
+                val oldSpan = jobToSpan.put(job, span)
+                if (oldSpan != null) {
+                    registeredSpanIds.remove(oldSpan.spanId)
+                }
+                registeredSpanIds.add(span.spanId)
             }
         }
 
         fun unregister(job: Job?) {
             if (job == null) return
             synchronized(lock) {
-                jobToSpan.remove(job)
+                val removed = jobToSpan.remove(job)
+                if (removed != null) {
+                    registeredSpanIds.remove(removed.spanId)
+                }
+            }
+        }
+
+        fun isSpanRegistered(spanId: String): Boolean {
+            return synchronized(lock) {
+                spanId in registeredSpanIds
             }
         }
 

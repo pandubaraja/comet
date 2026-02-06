@@ -14,6 +14,8 @@ internal actual fun captureCurrentStackTrace(maxDepth: Int): List<String>? {
     return null
 }
 
+internal actual fun isFromExcludedPackage(prefixes: Set<String>, continuation: kotlin.coroutines.Continuation<*>?): Boolean = false
+
 internal actual fun currentTimeNanos(): Long {
     // Use wall clock time in nanoseconds for Native
     return (NSDate().timeIntervalSince1970 * 1_000_000_000).toLong()
