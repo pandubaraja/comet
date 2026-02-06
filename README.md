@@ -17,8 +17,10 @@
 - **Pluggable Exporters** - Callback-based and composite exporters
 - **KMP Support** - Android, iOS, JVM targets
 
-## Preview
-https://github.com/user-attachments/assets/9d9fb746-a588-4b4c-b1ab-81018c221a96
+## Demo
+https://github.com/user-attachments/assets/900caecc-4b20-4dfb-ba57-ac44d622b9e3
+
+See [comet-demo](https://github.com/pandubaraja/comet-demo) for a full KMP sample app (Android + iOS) demonstrating Comet and comet-visualizer integration with real API calls and some coroutine patterns.
 
 ## Installation
 
@@ -211,59 +213,13 @@ suspend fun processOrder(orderId: String) = withSpan("process-order") {
 ```
 
 ## Real-Time Visualization
-
-Use [comet-visualizer](https://github.com/pandubaraja/comet-visualizer) for real-time trace visualization in your browser:
-
-```kotlin
-dependencies {
-    implementation("io.github.pandubaraja:comet:0.3.0")
-    implementation("io.github.pandubaraja:comet-visualizer:0.3.0")
-}
-```
-
-```kotlin
-import io.pandu.Comet
-import io.pandu.comet.visualizer.TraceServer
-import io.pandu.core.telemetry.exporters.VisualizerJsonExporter
-
-fun main() = runBlocking {
-    // Start the visualizer server
-    val server = TraceServer(port = 8080)
-    server.start()
-
-    // Configure Comet with the visualizer exporter
-    val comet = Comet.create {
-        exporter(VisualizerJsonExporter(server::sendEvent))
-        includeStackTrace(true)  // Enables source file/line display
-    }
-    comet.start()
-
-    // Your traced coroutines
-    launch(comet.traced("my-operation")) {
-        launch(CoroutineName("child-task")) {
-            delay(100)
-        }
-    }
-
-    // Open http://localhost:8080 in your browser
-}
-```
-
-> **Note:** If running on an Android emulator or device, forward the port first:
-> ```bash
-> adb forward tcp:8080 tcp:8080
-> ```
-> Then open `http://localhost:8080` in your browser.
+Use [comet-visualizer](https://github.com/pandubaraja/comet-visualizer) for real-time trace visualization in your browser
 
 The visualizer provides:
 - **Tree View**: Hierarchical display of coroutine parent-child relationships
 - **Gantt Chart**: Timeline visualization with zoom support
 - **Performance Tab**: Per-operation latency breakdown
 - **Source Location**: Click nodes to see file and line number
-
-## Demo App
-
-See [comet-demo](https://github.com/pandubaraja/comet-demo) for a full KMP sample app (Android + iOS) demonstrating Comet and comet-visualizer integration with real API calls and various coroutine patterns.
 
 ## Platform Support
 
