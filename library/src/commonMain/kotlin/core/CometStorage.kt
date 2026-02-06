@@ -61,12 +61,6 @@ internal class CometStorage(
             }
         }
 
-        fun isSpanRegistered(spanId: String): Boolean {
-            return synchronized(lock) {
-                jobToSpan.values.any { it.spanId == spanId }
-            }
-        }
-
         @OptIn(ExperimentalCoroutinesApi::class)
         fun findParentSpan(job: Job?): CoroutineTraceContext? {
             if (job == null) return null
