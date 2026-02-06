@@ -12,8 +12,10 @@ import kotlinx.coroutines.test.runTest
 import kotlin.coroutines.CoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CometStorageTest {
@@ -204,6 +206,65 @@ class CometStorageTest {
         grandparentJob.cancel()
         parentJob.cancel()
         childJob.cancel()
+    }
+
+    // =====================================================================
+    // SpanRegistry isSpanRegistered Tests
+    // =====================================================================
+
+    @Test
+    fun `isSpanRegistered returns true for registered span`() = runTest {
+        val storage = createStorage()
+        val job = Job()
+        val span = CoroutineTraceContext.create("test-operation")
+
+        storage.spanRegistry.register(job, span)
+
+        assertTrue(storage.spanRegistry.isSpanRegistered(span.spanId))
+
+        job.cancel()
+    }
+
+    @Test
+    fun `isSpanRegistered returns false after unregistering span`() = runTest {
+        val storage = createStorage()
+        val job = Job()
+        val span = CoroutineTraceContext.create("test-operation")
+
+        storage.spanRegistry.register(job, span)
+        storage.spanRegistry.unregister(job)
+
+        assertFalse(storage.spanRegistry.isSpanRegistered(span.spanId))
+
+        job.cancel()
+    }
+
+    @Test
+    fun `isSpanRegistered returns false for unknown span id`() {
+        val storage = createStorage()
+
+        assertFalse(storage.spanRegistry.isSpanRegistered("unknown-span-id"))
+    }
+
+    @Test
+    fun `isSpanRegistered tracks re-registered span correctly`() = runTest {
+        val storage = createStorage()
+        val job = Job()
+        val span1 = CoroutineTraceContext.create("operation-1")
+        val span2 = CoroutineTraceContext.create("operation-2")
+
+        storage.spanRegistry.register(job, span1)
+        assertTrue(storage.spanRegistry.isSpanRegistered(span1.spanId))
+
+        // Re-register same job with different span
+        storage.spanRegistry.register(job, span2)
+
+        // Old span should no longer be registered
+        assertFalse(storage.spanRegistry.isSpanRegistered(span1.spanId))
+        // New span should be registered
+        assertTrue(storage.spanRegistry.isSpanRegistered(span2.spanId))
+
+        job.cancel()
     }
 
     // =====================================================================

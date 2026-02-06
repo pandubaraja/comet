@@ -29,9 +29,8 @@ internal fun <T> createTelemetryContinuation(
 ): Continuation<T> {
     val context = continuation.context
     val contextCoroutineTraceContext = context[CoroutineTraceContext.Key]
-    val coroutineName = if (config.includeCoroutineName) {
-        context[CoroutineName]?.name
-    } else null
+    val actualCoroutineName = context[CoroutineName]?.name
+    val coroutineName = if (config.includeCoroutineName) actualCoroutineName else null
 
     val parentSampled = context[CoroutineSamplingDecision.Key]?.sampled
     val currentJob = context[Job]
@@ -50,19 +49,22 @@ internal fun <T> createTelemetryContinuation(
     if (alreadyTracked && parentSpanFromJob == null && contextCoroutineTraceContext != null) {
         return delegateIntercepted
     }
-    // Ghost type 2: unnamed re-dispatch (coroutineScope resume, await resume)
-    if (alreadyTracked && parentSpanFromJob != null) {
-        val isNamedChild = coroutineName != null && coroutineName != parentSpanFromJob.operationName
+    // Ghost type 2 (consolidated): unnamed framework scope or re-dispatch.
+    // If a parent span exists in the Job registry, only named children with a
+    // distinct name get their own span. Framework scopes (coroutineScope,
+    // withContext) and re-dispatches never have a name.
+    if (parentSpanFromJob != null) {
+        val isNamedChild = actualCoroutineName != null
+            && actualCoroutineName != parentSpanFromJob.operationName
         if (!isNamedChild) {
             return delegateIntercepted
         }
     }
-    // Ghost type 3: inherited root context without marker (e.g. ResumeAwaitOnCompletion).
+    // Ghost type 3 (generalized): inherited context without marker, span already registered.
     // Detected by checking if a span with the same spanId is already registered —
-    // meaning the real root coroutine was already wrapped.
+    // meaning the real coroutine was already wrapped. Applies to both root and child contexts.
     if (!alreadyTracked && parentSpanFromJob == null
         && contextCoroutineTraceContext != null
-        && contextCoroutineTraceContext.parentSpanId == null
         && spanRegistry != null
         && spanRegistry.isSpanRegistered(contextCoroutineTraceContext.spanId)) {
         return delegateIntercepted
@@ -84,16 +86,16 @@ internal fun <T> createTelemetryContinuation(
         isExcluded -> null
         contextCoroutineTraceContext != null && parentSpanFromJob != null -> {
             // Coroutine has explicit trace context and a traced parent — create child span
-            val spanName = if (coroutineName != null && coroutineName != parentSpanFromJob.operationName) {
-                coroutineName
+            val spanName = if (actualCoroutineName != null && actualCoroutineName != parentSpanFromJob.operationName) {
+                actualCoroutineName
             } else {
                 "coroutine"
             }
             parentSpanFromJob.createChildSpan(spanName)
         }
         parentSpanFromJob != null -> {
-            val spanName = if (coroutineName != null && coroutineName != parentSpanFromJob.operationName) {
-                coroutineName
+            val spanName = if (actualCoroutineName != null && actualCoroutineName != parentSpanFromJob.operationName) {
+                actualCoroutineName
             } else {
                 "coroutine"
             }
