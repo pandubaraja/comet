@@ -249,6 +249,12 @@ fun main() = runBlocking {
 }
 ```
 
+> **Note:** If running on an Android emulator or device, forward the port first:
+> ```bash
+> adb forward tcp:8080 tcp:8080
+> ```
+> Then open `http://localhost:8080` in your browser.
+
 The visualizer provides:
 - **Tree View**: Hierarchical display of coroutine parent-child relationships
 - **Gantt Chart**: Timeline visualization with zoom support
