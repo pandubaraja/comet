@@ -50,6 +50,10 @@ internal class CometContextElement(
         return getOrCreateInterceptor(dispatcher).interceptContinuation(continuation)
     }
 
+    internal fun withDispatcher(dispatcher: CoroutineDispatcher): CometContextElement {
+        return CometContextElement(config, collector, dispatcher)
+    }
+
     override fun releaseInterceptedContinuation(continuation: Continuation<*>) {
         synchronized(cacheLock) {
             interceptorCache.values.forEach { it.releaseInterceptedContinuation(continuation) }
